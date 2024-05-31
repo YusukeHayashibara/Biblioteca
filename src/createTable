@@ -1,0 +1,23 @@
+CREATE TABLE patron (
+    id_patron SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NOT NULL,
+    address VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE book (
+	ISBN SERIAL PRIMARY KEY,
+	title VARCHAR(100) NOT NULL,
+	author VARCHAR (100) NOT NULL,
+	category VARCHAR (100) NOT NULL
+);
+
+CREATE TABLE loan(
+	ISBN SERIAL NOT NULL,
+	id_patron SERIAL NOT NULL,
+	loan_date date NOT NULL,
+
+	CONSTRAINT loan_ISBN_fk FOREIGN KEY (ISBN) REFERENCES book(ISBN),
+	CONSTRAINT loan_patron_fk FOREIGN KEY (id_patron) REFERENCES patron(id_patron),
+	CONSTRAINT pk_loan PRIMARY KEY (ISBN, id_patron, loan_date)
+);
