@@ -105,6 +105,7 @@ public class GUI extends JFrame {
         bookButton.addActionListener(e -> cardLayout.show(cardPanel, "Book Operations"));
         loanButton.addActionListener(e -> cardLayout.show(cardPanel, "Loan Operations"));
 
+
         // Add Action Listeners for Patron Operations
         addPatronButton.addActionListener(e -> cardLayout.show(cardPanel, "Add Patron"));
         searchPatronButton.addActionListener(e -> cardLayout.show(cardPanel, "Search Patron"));
