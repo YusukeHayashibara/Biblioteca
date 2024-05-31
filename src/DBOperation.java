@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.ResultSet;
@@ -91,6 +92,45 @@ public class DBOperation {
             System.out.println(e);
         }
     }
+
+    public void searchBookById(Connection conn, int ISBM, JTextArea bookTextArea) {
+        Statement statement = null;
+        ResultSet rs = null;
+        try {
+            String query = String.format("SELECT * FROM book WHERE ISBM=%d;", ISBM);
+            statement = conn.createStatement();
+            rs = statement.executeQuery(query);
+
+            StringBuilder bookData = new StringBuilder();
+            while (rs.next()) {
+                // Append each column value to the StringBuilder
+                bookData.append("Title: ").append(rs.getString("title")).append("\n");
+                bookData.append("Author: ").append(rs.getString("author")).append("\n");
+                bookData.append("Category: ").append(rs.getString("category")).append("\n");
+                // Add more columns if needed
+                bookData.append("\n");
+            }
+
+            // Set the StringBuilder content to the JTextArea
+            bookTextArea.setText(bookData.toString());
+
+        } catch (SQLException e) {
+            System.out.println(e);
+        } finally {
+            // Close ResultSet and Statement in the finally block
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (statement != null) {
+                    statement.close();
+                }
+            } catch (SQLException ex) {
+                System.out.println(ex);
+            }
+        }
+    }
+
 
     // Delete a patron by name
     public boolean deletePatronByName(Connection conn, String name) {
@@ -203,6 +243,7 @@ public class DBOperation {
             System.out.println(e);
         }
     }
+
 
     // Delete a book by title
     public boolean deleteBookByTitle(Connection conn, String title) {

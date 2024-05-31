@@ -5,12 +5,16 @@ import java.awt.event.ActionListener;
 import java.sql.Connection;
 
 public class GUI extends JFrame {
+    private DeleteOperation deleteOperation;
+    private InsertOperation insertOperation;
     private Connection conn;
     private DBOperation dbOperations;
 
     public GUI(Connection conn) {
         this.conn = conn;
         this.dbOperations = new DBOperation();
+        this.insertOperation = new InsertOperation();
+        this.deleteOperation = new DeleteOperation();
         initComponents();
     }
 
@@ -144,7 +148,7 @@ public class GUI extends JFrame {
                 String name = patronNameField.getText();
                 String phone = patronPhoneField.getText();
                 String address = patronAddressField.getText();
-                boolean success = dbOperations.insertPatron(conn, name, phone, address);
+                boolean success = insertOperation.insertPatron(conn, name, phone, address);
                 if (success) {
                     JOptionPane.showMessageDialog(null, "Patron added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                     patronNameField.setText("");
@@ -203,7 +207,7 @@ public class GUI extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 try {
                     int patronId = Integer.parseInt(patronIdField.getText());
-                    boolean success = dbOperations.deletePatronById(conn, patronId);
+                    boolean success = deleteOperation.deletePatronById(conn, patronId);
                     if (success) {
                         JOptionPane.showMessageDialog(null, "Patron deleted successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                         patronIdField.setText("");
@@ -263,13 +267,13 @@ public class GUI extends JFrame {
 
     private JPanel createSearchBookPanel(CardLayout cardLayout, JPanel cardPanel) {
         JPanel panel = new JPanel(new GridLayout(0, 2));
-        JTextField bookTitleField = new JTextField();
+        JTextField bookIdField = new JTextField();
         JButton searchBookButton = new JButton("Search Book");
         JTextArea bookTextArea = new JTextArea();
         JButton backButton = new JButton("Back");
 
         panel.add(new JLabel("Title:"));
-        panel.add(bookTitleField);
+        panel.add(bookIdField);
         panel.add(searchBookButton);
         panel.add(new JScrollPane(bookTextArea));
         panel.add(backButton);
@@ -277,10 +281,16 @@ public class GUI extends JFrame {
         searchBookButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                bookTextArea.setText("");
-                dbOperations.searchBookByTitle(conn, bookTitleField.getText());
+                String bookId = bookIdField.getText().trim();
+                if (!bookId.isEmpty()) {
+                    int id = Integer.parseInt(bookId);
+                    dbOperations.searchBookById(conn, id, bookTextArea);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Please enter a Book ID.");
+                }
             }
         });
+
 
         backButton.addActionListener(e -> cardLayout.show(cardPanel, "Book Operations"));
 
