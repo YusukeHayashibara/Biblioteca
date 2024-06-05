@@ -25,10 +25,10 @@ public class LoanPanel extends JPanel {
     }
 
     private void initUI() {
-        tableModel = new DefaultTableModel(new Object[]{"Loan ID", "Book ID", "Patron ID", "Loan Date", "Return Date", "Returned"}, 0) {
+        tableModel = new DefaultTableModel(new Object[]{"Book ID", "Patron ID", "Loan Date", "Return Date", "Returned"}, 0) {
             @Override
             public Class<?> getColumnClass(int column) {
-                return column == 5 ? Boolean.class : super.getColumnClass(column);
+                return column == 4 ? Boolean.class : super.getColumnClass(column);
             }
         };
         table = new JTable(tableModel);
@@ -112,9 +112,8 @@ public class LoanPanel extends JPanel {
 
             while (rs.next()) {
                 tableModel.addRow(new Object[]{
-                        rs.getInt("id_loan"),
                         rs.getInt("id_book"),
-                        rs.getInt("patron_id"),
+                        rs.getInt("id_patron"),
                         rs.getDate("loan_date"),
                         rs.getDate("return_date"),
                         rs.getBoolean("returned")
@@ -129,10 +128,12 @@ public class LoanPanel extends JPanel {
     private void deleteSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
-            int loanId = (int) tableModel.getValueAt(selectedRow, 0);
+            int bookId = (int) tableModel.getValueAt(selectedRow, 0);
+            int patronId = (int) tableModel.getValueAt(selectedRow, 1);
+            java.sql.Date loanDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 2);
 
             try (Statement stmt = connection.createStatement()) {
-                String query = String.format("DELETE FROM loan WHERE id_loan=%d", loanId);
+                String query = String.format("DELETE FROM loan WHERE id_book=%d AND id_patron=%d AND loan_date='%s'", bookId, patronId, loanDate);
                 stmt.executeUpdate(query);
                 tableModel.removeRow(selectedRow);
             } catch (SQLException e) {
@@ -144,12 +145,11 @@ public class LoanPanel extends JPanel {
     private void updateSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
-            int loanId = (int) tableModel.getValueAt(selectedRow, 0);
-            int bookId = (int) tableModel.getValueAt(selectedRow, 1);
-            int patronId = (int) tableModel.getValueAt(selectedRow, 2);
-            java.sql.Date loanDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 3);
-            java.sql.Date returnDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 4);
-            boolean returned = (boolean) tableModel.getValueAt(selectedRow, 5);
+            int bookId = (int) tableModel.getValueAt(selectedRow, 0);
+            int patronId = (int) tableModel.getValueAt(selectedRow, 1);
+            java.sql.Date loanDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 2);
+            java.sql.Date returnDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 3);
+            boolean returned = (boolean) tableModel.getValueAt(selectedRow, 4);
 
             JTextField bookIdField = new JTextField(String.valueOf(bookId));
             JTextField patronIdField = new JTextField(String.valueOf(patronId));
@@ -177,14 +177,14 @@ public class LoanPanel extends JPanel {
                 boolean newReturned = returnedCheckBox.isSelected();
 
                 try (Statement stmt = connection.createStatement()) {
-                    String query = String.format("UPDATE loan SET id_book=%d, patron_id=%d, loan_date='%s', return_date='%s', returned=%b WHERE id_loan=%d",
-                            newBookId, newPatronId, newLoanDate, newReturnDate, newReturned, loanId);
+                    String query = String.format("UPDATE loan SET id_book=%d, id_patron=%d, loan_date='%s', return_date='%s', returned=%b WHERE id_book=%d AND id_patron=%d AND loan_date='%s'",
+                            newBookId, newPatronId, newLoanDate, newReturnDate, newReturned, bookId, patronId, loanDate);
                     stmt.executeUpdate(query);
-                    tableModel.setValueAt(newBookId, selectedRow, 1);
-                    tableModel.setValueAt(newPatronId, selectedRow, 2);
-                    tableModel.setValueAt(newLoanDate, selectedRow, 3);
-                    tableModel.setValueAt(newReturnDate, selectedRow, 4);
-                    tableModel.setValueAt(newReturned, selectedRow, 5);
+                    tableModel.setValueAt(newBookId, selectedRow, 0);
+                    tableModel.setValueAt(newPatronId, selectedRow, 1);
+                    tableModel.setValueAt(newLoanDate, selectedRow, 2);
+                    tableModel.setValueAt(newReturnDate, selectedRow, 3);
+                    tableModel.setValueAt(newReturned, selectedRow, 4);
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
@@ -219,7 +219,7 @@ public class LoanPanel extends JPanel {
             boolean returned = returnedCheckBox.isSelected();
 
             try (Statement stmt = connection.createStatement()) {
-                String query = String.format("INSERT INTO loan (id_book, patron_id, loan_date, return_date, returned) VALUES (%d, %d, '%s', '%s', %b)",
+                String query = String.format("INSERT INTO loan (id_book, id_patron, loan_date, return_date, returned) VALUES (%d, %d, '%s', '%s', %b)",
                         bookId, patronId, loanDate, returnDate, returned);
                 stmt.executeUpdate(query);
                 loadLoanData(); // Refresh table data
@@ -232,16 +232,14 @@ public class LoanPanel extends JPanel {
     private void searchLoan(String query) {
         tableModel.setRowCount(0); // Clear existing data
 
-        String sql = "SELECT * FROM loan WHERE CAST(id_book AS TEXT) ILIKE '%" + query + "%' OR CAST(patron_id AS TEXT) ILIKE '%" + query + "%' " +
-                "OR CAST(loan_date AS TEXT) ILIKE '%" + query + "%' OR CAST(return_date AS TEXT) ILIKE '%" + query + "%' OR CAST(returned AS TEXT) ILIKE '%" + query + "%'";
+        String sql = "SELECT * FROM loan WHERE CAST(id_book AS TEXT) ILIKE '%" + query + "%' OR CAST(id_patron AS TEXT) ILIKE '%" + query + "%' OR CAST(loan_date AS TEXT) ILIKE '%" + query + "%' OR CAST(return_date AS TEXT) ILIKE '%" + query + "%' OR CAST(returned AS TEXT) ILIKE '%" + query + "%'";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 tableModel.addRow(new Object[]{
-                        rs.getInt("id_loan"),
                         rs.getInt("id_book"),
-                        rs.getInt("patron_id"),
+                        rs.getInt("id_patron"),
                         rs.getDate("loan_date"),
                         rs.getDate("return_date"),
                         rs.getBoolean("returned")

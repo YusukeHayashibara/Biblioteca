@@ -8,7 +8,7 @@ public class Main {
 
         if (conn != null) {
             DBCreateTable.createTables(conn); // Create tables if they don't exist
-            DBTriggers.createTriggers(conn);
+            //DBTriggers.createTriggers(conn);
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {

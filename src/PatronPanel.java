@@ -201,7 +201,7 @@ public class PatronPanel extends JPanel {
     private void searchPatron(String query) {
         tableModel.setRowCount(0); // Clear existing data
 
-        String sql = "SELECT * FROM patron WHERE name ILIKE '%" + query + "%' OR phone ILIKE '%" + query + "%' OR address ILIKE '%" + query + "%'";
+        String sql = "SELECT * FROM patron WHERE nome ILIKE '%" + query + "%' OR phone ILIKE '%" + query + "%' OR address ILIKE '%" + query + "%'";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
