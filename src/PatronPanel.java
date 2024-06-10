@@ -207,7 +207,7 @@ public class PatronPanel extends JPanel {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id_patron"), rs.getString("name"), rs.getString("phone"), rs.getString("address")});
+                tableModel.addRow(new Object[]{rs.getInt("id_patron"), rs.getString("nome"), rs.getString("phone"), rs.getString("address")});
             }
 
         } catch (SQLException e) {

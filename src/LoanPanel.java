@@ -5,10 +5,7 @@ import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 public class LoanPanel extends JPanel {
 
@@ -211,21 +208,27 @@ public class LoanPanel extends JPanel {
         panel.add(returnDateField);
         panel.add(returnedCheckBox);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "Add Loan", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(null, panel, "Add Loan", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
-            int bookId = Integer.parseInt(bookIdField.getText());
-            int patronId = Integer.parseInt(patronIdField.getText());
-            java.sql.Date loanDate = java.sql.Date.valueOf(loanDateField.getText());
-            java.sql.Date returnDate = java.sql.Date.valueOf(returnDateField.getText());
-            boolean returned = returnedCheckBox.isSelected();
+            try {
+                int bookId = Integer.parseInt(bookIdField.getText());
+                int patronId = Integer.parseInt(patronIdField.getText());
+                Date loanDate = Date.valueOf(loanDateField.getText());
+                Date returnDate = returnDateField.getText().isEmpty() ? null : Date.valueOf(returnDateField.getText());
+                boolean returned = returnedCheckBox.isSelected();
 
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("INSERT INTO loan (id_book, id_patron, loan_date, return_date, returned) VALUES (%d, %d, '%s', '%s', %b)",
-                        bookId, patronId, loanDate, returnDate, returned);
-                stmt.executeUpdate(query);
-                loadLoanData(); // Refresh table data
-            } catch (SQLException e) {
-                e.printStackTrace();
+                String query = String.format("INSERT INTO loan (id_book, id_patron, loan_date, return_date, returned) VALUES (%d, %d, '%s', %s, %b)", bookId, patronId, loanDate, returnDate == null ? "NULL" : "'" + returnDate + "'", returned);
+
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.executeUpdate(query);
+                    loadLoanData(); // Refresh table data
+                } catch (SQLException e) {
+                    JOptionPane.showMessageDialog(null, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Please enter valid numbers for Book ID and Patron ID.", "Invalid Input", JOptionPane.WARNING_MESSAGE);
+            } catch (IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(null, "Please enter valid dates in the format YYYY-MM-DD.", "Invalid Date Format", JOptionPane.WARNING_MESSAGE);
             }
         }
     }
@@ -233,7 +236,7 @@ public class LoanPanel extends JPanel {
     private void searchLoan(String query) {
         tableModel.setRowCount(0); // Clear existing data
 
-        String sql = "SELECT * FROM loan WHERE CAST(id_book AS TEXT) ILIKE '%" + query + "%' OR CAST(id_patron AS TEXT) ILIKE '%" + query + "%' OR CAST(loan_date AS TEXT) ILIKE '%" + query + "%' OR CAST(return_date AS TEXT) ILIKE '%" + query + "%' OR CAST(returned AS TEXT) ILIKE '%" + query + "%'";
+        String sql = "SELECT * FROM loan WHERE CAST(id_book AS TEXT) ILIKE '%" + query + "%' OR CAST(id_patron AS TEXT) ILIKE '%" + query + "%'";
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
