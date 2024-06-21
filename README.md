@@ -2,11 +2,11 @@
 The Loan Management System is a Java Swing application that manages library loan records. It allows users to view, add, update, delete, and search for loan records in a database. The application features a graphical user interface (GUI) to interact with the loan data stored in a relational database.
 
 # Features:
- - View Loan Records: Display all loan, books and patrons records in a table format.
- - Add Loan Record: Add new loan, books and patrons records to the database.
- - Update Loan Record: Modify existing loan, books and patrons records.
- - Delete Loan Record: Remove loan, books and patrons records from the database.
- - Search Loan Records: Search for loan, books and patrons records based on various criteria.
+ - View Records: Display all loan, books and patrons records in a table format.
+ - Add Record: Add new loan, books and patrons records to the database.
+ - Update Record: Modify existing loan, books and patrons records.
+ - Delete Record: Remove loan, books and patrons records from the database.
+ - Search Records: Search for loan, books and patrons records based on various criteria.
  - Back Navigation: Return to the main application window.
 
  # Components:
