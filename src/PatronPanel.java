@@ -1,32 +1,41 @@
-//
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
+/**
+ * The PatronPanel class represents a panel in a GUI application that displays patron data
+ * in a table and allows for basic operations such as adding, deleting, updating, and
+ * searching patron data.
+ */
 public class PatronPanel extends JPanel {
 
-    private DBOperation dbOperations;
-    private Connection connection;
+    private PatronOperations patronOperations;
     private JTable table;
     private DefaultTableModel tableModel;
     private JFrame mainFrame;
     private TableRowSorter<DefaultTableModel> sorter;
 
-    public PatronPanel(Connection connection, JFrame mainFrame) {
-        this.connection = connection;
+    /**
+     * Constructs a PatronPanel with the specified patron operations and main frame.
+     *
+     * @param patronOperations the patron operations to use for interacting with the database
+     * @param mainFrame the main frame of the application
+     */
+    public PatronPanel(PatronOperations patronOperations, JFrame mainFrame) {
+        this.patronOperations = patronOperations;
         this.mainFrame = mainFrame;
-        this.dbOperations = new DBOperation();
         setLayout(new BorderLayout());
         initUI();
     }
 
+    /**
+     * Initializes the user interface components of the panel.
+     */
     private void initUI() {
         tableModel = new DefaultTableModel(new Object[]{"Patron ID", "Name", "Phone", "Address"}, 0);
         table = new JTable(tableModel);
@@ -103,35 +112,46 @@ public class PatronPanel extends JPanel {
         });
     }
 
+    /**
+     * Loads patron data from the database into the table model.
+     */
     private void loadPatronData() {
-        tableModel.setRowCount(0); // Clear existing data
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM patron")) {
-
+        tableModel.setRowCount(0); // Limpar dados existentes
+        try {
+            ResultSet rs = patronOperations.getAllPatrons();
             while (rs.next()) {
                 tableModel.addRow(new Object[]{rs.getInt("id_patron"), rs.getString("nome"), rs.getString("phone"), rs.getString("address")});
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Deletes the selected row from the table and the corresponding patron from the database.
+     */
     private void deleteSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
             int patronId = (int) tableModel.getValueAt(selectedRow, 0);
-
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("DELETE FROM patron WHERE id_patron=%d", patronId);
-                stmt.executeUpdate(query);
+            try {
+                patronOperations.deletePatron(patronId);
                 tableModel.removeRow(selectedRow);
             } catch (SQLException e) {
-                e.printStackTrace();
+                if (e.getMessage().contains("Cannot delete patron because he/she is currently loaning a book.")) {
+                    JOptionPane.showMessageDialog(this, "Error: Cannot delete patron because he/she is currently loaning a book.", "Delete Error", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Error: An unexpected error occurred while deleting the book.", "Delete Error", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
+                }
             }
         }
     }
 
+
+    /**
+     * Updates the selected row in the table and the corresponding patron in the database.
+     */
     private void updateSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
@@ -139,37 +159,17 @@ public class PatronPanel extends JPanel {
             String name = (String) tableModel.getValueAt(selectedRow, 1);
             String phone = (String) tableModel.getValueAt(selectedRow, 2);
             String address = (String) tableModel.getValueAt(selectedRow, 3);
-
-            JTextField nameField = new JTextField(name);
-            JTextField phoneField = new JTextField(phone);
-            JTextField addressField = new JTextField(address);
-
-            JPanel panel = new JPanel(new GridLayout(0, 1));
-            panel.add(new JLabel("Name:"));
-            panel.add(nameField);
-            panel.add(new JLabel("Phone:"));
-            panel.add(phoneField);
-            panel.add(new JLabel("Address:"));
-            panel.add(addressField);
-
-            int result = JOptionPane.showConfirmDialog(this, panel, "Update Patron", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-            if (result == JOptionPane.OK_OPTION) {
-                String newName = nameField.getText();
-                String newPhone = phoneField.getText();
-                String newAddress = addressField.getText();
-                try (Statement stmt = connection.createStatement()) {
-                    String query = String.format("UPDATE patron SET nome='%s', phone='%s', address='%s' WHERE id_patron=%d", newName, newPhone, newAddress, patronId);
-                    stmt.executeUpdate(query);
-                    tableModel.setValueAt(newName, selectedRow, 1);
-                    tableModel.setValueAt(newPhone, selectedRow, 2);
-                    tableModel.setValueAt(newAddress, selectedRow, 3);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+            try {
+                patronOperations.updatePatron(patronId, name, phone, address);
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
         }
     }
 
+    /**
+     * Adds a new patron to the database and refreshes the table data.
+     */
     private void addNewPatron() {
         JTextField nameField = new JTextField();
         JTextField phoneField = new JTextField();
@@ -183,33 +183,32 @@ public class PatronPanel extends JPanel {
         panel.add(new JLabel("Address:"));
         panel.add(addressField);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "Add Patron", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(null, panel, "Add New Patron", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
             String name = nameField.getText();
             String phone = phoneField.getText();
             String address = addressField.getText();
-
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("INSERT INTO patron (nome, phone, address) VALUES ('%s', '%s', '%s')", name, phone, address);
-                stmt.executeUpdate(query);
-                loadPatronData(); // Refresh table data
+            try {
+                patronOperations.addPatron(name, phone, address);
+                loadPatronData();
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
     }
 
+    /**
+     * Searches for patrons in the database matching the query and updates the table model.
+     *
+     * @param query the search query
+     */
     private void searchPatron(String query) {
-        tableModel.setRowCount(0); // Clear existing data
-
-        String sql = "SELECT * FROM patron WHERE nome ILIKE '%" + query + "%' OR phone ILIKE '%" + query + "%' OR address ILIKE '%" + query + "%'";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
+        try {
+            ResultSet rs = patronOperations.searchPatron(query);
+            tableModel.setRowCount(0); // Limpar dados existentes
             while (rs.next()) {
                 tableModel.addRow(new Object[]{rs.getInt("id_patron"), rs.getString("nome"), rs.getString("phone"), rs.getString("address")});
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         }

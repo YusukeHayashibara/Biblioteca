@@ -1,23 +1,31 @@
-//
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 
+/**
+ * The LibraryApp class represents a Library Management System application with a GUI.
+ */
 public class LibraryApp extends JFrame {
 
-    private static final String PASSWORD = "admin123"; // Set your password here
+    private static final String PASSWORD = "admin123"; // Define your password here
     private Connection connection;
     private JFrame mainFrame;
 
+    /**
+     * Constructs a LibraryApp with a specified database connection.
+     *
+     * @param connection the database connection to be used
+     */
     public LibraryApp(Connection connection) {
         this.connection = connection;
         initUI();
     }
 
+    /**
+     * Initializes the user interface for the LibraryApp.
+     */
     private void initUI() {
         setTitle("Library Management System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -28,6 +36,11 @@ public class LibraryApp extends JFrame {
         placeComponents(panel);
     }
 
+    /**
+     * Places the components on the given panel.
+     *
+     * @param panel the panel to place components on
+     */
     private void placeComponents(JPanel panel) {
         panel.setLayout(null);
 
@@ -56,6 +69,9 @@ public class LibraryApp extends JFrame {
         });
     }
 
+    /**
+     * Displays the main menu after a successful login.
+     */
     private void showMainMenu() {
         mainFrame = new JFrame("Main Menu");
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -97,33 +113,44 @@ public class LibraryApp extends JFrame {
         mainFrame.setVisible(true);
     }
 
+    /**
+     * Displays the loan page.
+     */
     private void showLoanPage() {
         JFrame frame = new JFrame("Loan Page");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(800, 600);
-
-        LoanPanel loanPanel = new LoanPanel(connection, mainFrame);
+        LoanOperation loanOperations = new LoanOperation(connection);
+        LoanPanel loanPanel = new LoanPanel(loanOperations, mainFrame);
         frame.add(loanPanel);
         frame.setVisible(true);
     }
 
+    /**
+     * Displays the book page.
+     */
     private void showBookPage() {
         JFrame frame = new JFrame("Book Page");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(800, 600);
 
-        BookPanel bookPanel = new BookPanel(connection, mainFrame);
+        BookOperation bookOperations = new BookOperation(connection);
+        BookPanel bookPanel = new BookPanel(bookOperations, mainFrame);
         frame.add(bookPanel);
         frame.setVisible(true);
     }
 
+    /**
+     * Displays the patron page.
+     */
     private void showPatronPage() {
         JFrame frame = new JFrame("Patron Page");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(800, 600);
 
-        PatronPanel patronPanel = new PatronPanel(connection, mainFrame);
-        frame.add(patronPanel);
+        PatronOperations patronOperations = new PatronOperations(connection);
+        PatronPanel patronPanelUI = new PatronPanel(patronOperations, mainFrame);
+        frame.add(patronPanelUI);
         frame.setVisible(true);
     }
 }

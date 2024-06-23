@@ -1,30 +1,44 @@
-//
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
+/**
+ * The BookPanel class represents a panel in a GUI application that displays book data
+ * in a table and allows for basic operations such as adding, deleting, updating, and
+ * searching book data.
+ */
 public class BookPanel extends JPanel {
 
-    private Connection connection;
+    private BookOperation bookOperations;
     private JTable table;
     private DefaultTableModel tableModel;
     private JFrame mainFrame;
     private TableRowSorter<DefaultTableModel> sorter;
 
-    public BookPanel(Connection connection, JFrame mainFrame) {
-        this.connection = connection;
+    /**
+     * Constructs a BookPanel with the specified book operations and main frame.
+     *
+     * @param bookOperations the book operations to use for interacting with the database
+     * @param mainFrame the main frame of the application
+     */
+    public BookPanel(BookOperation bookOperations, JFrame mainFrame) {
+        this.bookOperations = bookOperations;
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout());
         initUI();
     }
 
+    /**
+     * Initializes the user interface components of the panel.
+     */
     private void initUI() {
         tableModel = new DefaultTableModel(new Object[]{"Book ID", "Title", "Author", "Genre"}, 0);
         table = new JTable(tableModel);
@@ -101,35 +115,40 @@ public class BookPanel extends JPanel {
         });
     }
 
+    /**
+     * Loads book data from the database into the table model.
+     */
     private void loadBookData() {
         tableModel.setRowCount(0); // Clear existing data
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM book")) {
-
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id_book"), rs.getString("title"), rs.getString("author"), rs.getString("genre")});
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        bookOperations.loadBookData(tableModel);
     }
 
+    /**
+     * Deletes the selected row from the table and the corresponding book from the database.
+     */
     private void deleteSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
             int bookId = (int) tableModel.getValueAt(selectedRow, 0);
-
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("DELETE FROM book WHERE id_book=%d", bookId);
-                stmt.executeUpdate(query);
+            try {
+                bookOperations.deleteBook(bookId);
                 tableModel.removeRow(selectedRow);
             } catch (SQLException e) {
-                e.printStackTrace();
+                //Trigger activation
+                if (e.getMessage().contains("Cannot delete book because it is currently on loan and not yet returned.")) {
+                    JOptionPane.showMessageDialog(this, "Error: Cannot delete book because it is currently on loan and not yet returned.", "Delete Error", JOptionPane.ERROR_MESSAGE);
+                } else {//unknown error
+                    JOptionPane.showMessageDialog(this, "Error: An unexpected error occurred while deleting the book.", "Delete Error", JOptionPane.ERROR_MESSAGE);
+                    e.printStackTrace();
+                }
             }
         }
     }
 
+
+    /**
+     * Updates the selected row in the table and the corresponding book in the database.
+     */
     private void updateSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
@@ -155,19 +174,17 @@ public class BookPanel extends JPanel {
                 String newTitle = titleField.getText();
                 String newAuthor = authorField.getText();
                 String newGenre = genreField.getText();
-                try (Statement stmt = connection.createStatement()) {
-                    String query = String.format("UPDATE book SET title='%s', author='%s', genre='%s' WHERE id_book=%d", newTitle, newAuthor, newGenre, bookId);
-                    stmt.executeUpdate(query);
-                    tableModel.setValueAt(newTitle, selectedRow, 1);
-                    tableModel.setValueAt(newAuthor, selectedRow, 2);
-                    tableModel.setValueAt(newGenre, selectedRow, 3);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                bookOperations.updateBook(bookId, newTitle, newAuthor, newGenre);
+                tableModel.setValueAt(newTitle, selectedRow, 1);
+                tableModel.setValueAt(newAuthor, selectedRow, 2);
+                tableModel.setValueAt(newGenre, selectedRow, 3);
             }
         }
     }
 
+    /**
+     * Adds a new book to the database and refreshes the table data.
+     */
     private void addNewBook() {
         JTextField titleField = new JTextField();
         JTextField authorField = new JTextField();
@@ -186,30 +203,18 @@ public class BookPanel extends JPanel {
             String title = titleField.getText();
             String author = authorField.getText();
             String genre = genreField.getText();
-
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("INSERT INTO book (title, author, genre) VALUES ('%s', '%s', '%s')", title, author, genre);
-                stmt.executeUpdate(query);
-                loadBookData(); // Refresh table data
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            bookOperations.addBook(title, author, genre);
+            loadBookData(); // Refresh table data
         }
     }
 
+    /**
+     * Searches for books in the database matching the query and updates the table model.
+     *
+     * @param query the search query
+     */
     private void searchBook(String query) {
         tableModel.setRowCount(0); // Clear existing data
-
-        String sql = "SELECT * FROM book WHERE title ILIKE '%" + query + "%' OR author ILIKE '%" + query + "%' OR genre ILIKE '%" + query + "%'";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                tableModel.addRow(new Object[]{rs.getInt("id_book"), rs.getString("title"), rs.getString("author"), rs.getString("genre")});
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        bookOperations.searchBook(query, tableModel);
     }
 }

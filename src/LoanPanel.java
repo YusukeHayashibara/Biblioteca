@@ -1,37 +1,73 @@
-//
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.*;
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
+/**
+ * The LoanPanel class represents a panel in a GUI application that displays loan data
+ * in a table and allows for basic operations such as adding, deleting, updating, and
+ * searching loan data.
+ */
 public class LoanPanel extends JPanel {
 
-    private Connection connection;
+    private LoanOperation loanOperations;
     private JTable table;
     private DefaultTableModel tableModel;
-    private TableRowSorter<DefaultTableModel> sorter;
     private JFrame mainFrame;
+    private TableRowSorter<DefaultTableModel> sorter;
 
-    public LoanPanel(Connection connection, JFrame mainFrame) {
-        this.connection = connection;
+    /**
+     * Constructs a LoanPanel with the specified loan operations and main frame.
+     *
+     * @param loanOperations the loan operations to use for interacting with the database
+     * @param mainFrame the main frame of the application
+     */
+    public LoanPanel(LoanOperation loanOperations, JFrame mainFrame) {
+        this.loanOperations = loanOperations;
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout());
         initUI();
     }
 
+    /**
+     * Initializes the user interface components of the panel.
+     */
     private void initUI() {
         tableModel = new DefaultTableModel(new Object[]{"Book ID", "Patron ID", "Loan Date", "Return Date", "Returned"}, 0) {
             @Override
-            public Class<?> getColumnClass(int column) {
-                return column == 4 ? Boolean.class : super.getColumnClass(column);
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 4) {
+                    return Boolean.class;
+                }
+                return super.getColumnClass(columnIndex);
             }
         };
         table = new JTable(tableModel);
         sorter = new TableRowSorter<>(tableModel);
         table.setRowSorter(sorter);
+
+        DefaultTableCellRenderer centeredCheckBoxRenderer = new DefaultTableCellRenderer() {
+            private final JCheckBox checkBox = new JCheckBox();
+
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                checkBox.setSelected((Boolean) value);
+                checkBox.setHorizontalAlignment(JLabel.CENTER);
+                if (isSelected) {
+                    checkBox.setBackground(table.getSelectionBackground());
+                } else {
+                    checkBox.setBackground(table.getBackground());
+                }
+                return checkBox;
+            }
+        };
 
         loadLoanData();
 
@@ -103,11 +139,13 @@ public class LoanPanel extends JPanel {
         });
     }
 
+    /**
+     * Loads loan data from the database into the table model.
+     */
     private void loadLoanData() {
-        tableModel.setRowCount(0); // Clear existing data
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM loan")) {
-
+        tableModel.setRowCount(0); // Limpar dados existentes
+        try {
+            ResultSet rs = loanOperations.getAllLoans();
             while (rs.next()) {
                 tableModel.addRow(new Object[]{
                         rs.getInt("id_book"),
@@ -117,22 +155,22 @@ public class LoanPanel extends JPanel {
                         rs.getBoolean("returned")
                 });
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Deletes the selected row from the table and the corresponding loan from the database.
+     */
     private void deleteSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
             int bookId = (int) tableModel.getValueAt(selectedRow, 0);
             int patronId = (int) tableModel.getValueAt(selectedRow, 1);
-            java.sql.Date loanDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 2);
-
-            try (Statement stmt = connection.createStatement()) {
-                String query = String.format("DELETE FROM loan WHERE id_book=%d AND id_patron=%d AND loan_date='%s'", bookId, patronId, loanDate);
-                stmt.executeUpdate(query);
+            Date loanDate = (Date) tableModel.getValueAt(selectedRow, 2);
+            try {
+                loanOperations.deleteLoan(bookId, patronId, loanDate);
                 tableModel.removeRow(selectedRow);
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -140,20 +178,23 @@ public class LoanPanel extends JPanel {
         }
     }
 
+    /**
+     * Updates the selected row in the table and the corresponding loan in the database.
+     */
     private void updateSelectedRow() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow != -1) {
-            int bookId = (int) tableModel.getValueAt(selectedRow, 0);
-            int patronId = (int) tableModel.getValueAt(selectedRow, 1);
-            java.sql.Date loanDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 2);
-            java.sql.Date returnDate = (java.sql.Date) tableModel.getValueAt(selectedRow, 3);
-            boolean returned = (boolean) tableModel.getValueAt(selectedRow, 4);
+            int currentBookId = (int) tableModel.getValueAt(selectedRow, 0);
+            int currentPatronId = (int) tableModel.getValueAt(selectedRow, 1);
+            Date currentLoanDate = (Date) tableModel.getValueAt(selectedRow, 2);
+            Date currentReturnDate = (Date) tableModel.getValueAt(selectedRow, 3);
+            boolean currentReturned = (boolean) tableModel.getValueAt(selectedRow, 4);
 
-            JTextField bookIdField = new JTextField(String.valueOf(bookId));
-            JTextField patronIdField = new JTextField(String.valueOf(patronId));
-            JTextField loanDateField = new JTextField(String.valueOf(loanDate));
-            JTextField returnDateField = new JTextField(String.valueOf(returnDate));
-            JCheckBox returnedCheckBox = new JCheckBox("Returned", returned);
+            JTextField bookIdField = new JTextField(String.valueOf(currentBookId));
+            JTextField patronIdField = new JTextField(String.valueOf(currentPatronId));
+            JTextField loanDateField = new JTextField(String.valueOf(currentLoanDate));
+            JTextField returnDateField = new JTextField(String.valueOf(currentReturnDate));
+            JCheckBox returnedCheckBox = new JCheckBox("Returned", currentReturned);
 
             JPanel panel = new JPanel(new GridLayout(0, 1));
             panel.add(new JLabel("Book ID:"));
@@ -170,14 +211,12 @@ public class LoanPanel extends JPanel {
             if (result == JOptionPane.OK_OPTION) {
                 int newBookId = Integer.parseInt(bookIdField.getText());
                 int newPatronId = Integer.parseInt(patronIdField.getText());
-                java.sql.Date newLoanDate = java.sql.Date.valueOf(loanDateField.getText());
-                java.sql.Date newReturnDate = java.sql.Date.valueOf(returnDateField.getText());
+                Date newLoanDate = Date.valueOf(loanDateField.getText());
+                Date newReturnDate = Date.valueOf(returnDateField.getText());
                 boolean newReturned = returnedCheckBox.isSelected();
 
-                try (Statement stmt = connection.createStatement()) {
-                    String query = String.format("UPDATE loan SET id_book=%d, id_patron=%d, loan_date='%s', return_date='%s', returned=%b WHERE id_book=%d AND id_patron=%d AND loan_date='%s'",
-                            newBookId, newPatronId, newLoanDate, newReturnDate, newReturned, bookId, patronId, loanDate);
-                    stmt.executeUpdate(query);
+                try {
+                    loanOperations.updateLoan(currentBookId, currentPatronId, currentLoanDate, newBookId, newPatronId, newLoanDate, newReturnDate, newReturned);
                     tableModel.setValueAt(newBookId, selectedRow, 0);
                     tableModel.setValueAt(newPatronId, selectedRow, 1);
                     tableModel.setValueAt(newLoanDate, selectedRow, 2);
@@ -190,6 +229,9 @@ public class LoanPanel extends JPanel {
         }
     }
 
+    /**
+     * Adds a new loan to the database and refreshes the table data.
+     */
     private void addNewLoan() {
         JTextField bookIdField = new JTextField();
         JTextField patronIdField = new JTextField();
@@ -208,38 +250,42 @@ public class LoanPanel extends JPanel {
         panel.add(returnDateField);
         panel.add(returnedCheckBox);
 
-        int result = JOptionPane.showConfirmDialog(null, panel, "Add Loan", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(this, panel, "Add New Loan", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result == JOptionPane.OK_OPTION) {
+            int bookId = Integer.parseInt(bookIdField.getText());
+            int patronId = Integer.parseInt(patronIdField.getText());
+            Date loanDate = Date.valueOf(loanDateField.getText());
+            Date returnDate = returnDateField.getText().isEmpty() ? null : Date.valueOf(returnDateField.getText());
+            boolean returned = returnedCheckBox.isSelected();
+
             try {
-                int bookId = Integer.parseInt(bookIdField.getText());
-                int patronId = Integer.parseInt(patronIdField.getText());
-                Date loanDate = Date.valueOf(loanDateField.getText());
-                Date returnDate = returnDateField.getText().isEmpty() ? null : Date.valueOf(returnDateField.getText());
-                boolean returned = returnedCheckBox.isSelected();
-
-                String query = String.format("INSERT INTO loan (id_book, id_patron, loan_date, return_date, returned) VALUES (%d, %d, '%s', %s, %b)", bookId, patronId, loanDate, returnDate == null ? "NULL" : "'" + returnDate + "'", returned);
-
-                try (Statement stmt = connection.createStatement()) {
-                    stmt.executeUpdate(query);
-                    loadLoanData(); // Refresh table data
-                } catch (SQLException e) {
-                    JOptionPane.showMessageDialog(null, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                loanOperations.addLoan(bookId, patronId, loanDate, returnDate, returned);
+                loadLoanData();
+            } catch (SQLException e) {
+                if (e.getMessage().contains("The book is already loaned out and not yet returned.")) {
+                    JOptionPane.showMessageDialog(this, "Error: The book is already loaned out and not yet returned.", "Loan Error", JOptionPane.ERROR_MESSAGE);
+                } else if (e.getMessage().contains("loan_book_fk")) {
+                    JOptionPane.showMessageDialog(this, "Error: The specified book does not exist.", "Loan Error", JOptionPane.ERROR_MESSAGE);
+                } else if (e.getMessage().contains("loan_patron_fk")) {
+                    JOptionPane.showMessageDialog(this, "Error: The specified patron does not exist.", "Loan Error", JOptionPane.ERROR_MESSAGE);
+                } else {
+                    e.printStackTrace();
                 }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Please enter valid numbers for Book ID and Patron ID.", "Invalid Input", JOptionPane.WARNING_MESSAGE);
-            } catch (IllegalArgumentException e) {
-                JOptionPane.showMessageDialog(null, "Please enter valid dates in the format YYYY-MM-DD.", "Invalid Date Format", JOptionPane.WARNING_MESSAGE);
             }
         }
     }
 
+
+
+    /**
+     * Searches for loans in the database matching the query and updates the table model.
+     *
+     * @param query the search query
+     */
     private void searchLoan(String query) {
-        tableModel.setRowCount(0); // Clear existing data
-
-        String sql = "SELECT * FROM loan WHERE CAST(id_book AS TEXT) ILIKE '%" + query + "%' OR CAST(id_patron AS TEXT) ILIKE '%" + query + "%'";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
+        try {
+            ResultSet rs = loanOperations.searchLoan(query);
+            tableModel.setRowCount(0); // Limpar dados existentes
             while (rs.next()) {
                 tableModel.addRow(new Object[]{
                         rs.getInt("id_book"),
@@ -249,7 +295,6 @@ public class LoanPanel extends JPanel {
                         rs.getBoolean("returned")
                 });
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
         }
