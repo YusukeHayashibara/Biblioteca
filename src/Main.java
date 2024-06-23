@@ -14,7 +14,7 @@ public class Main {
     public static void main(String[] args) {
         DBConnection dbConnection = new DBConnection();
         //Set your posgres password down below...
-        Connection conn = dbConnection.connect_to_db("Biblioteca", "postgres", "1gatinho");
+        Connection conn = dbConnection.connect_to_db("Biblioteca", "postgres", "Your_Postgres_Pass");
 
         if (conn != null) {
             DBCreateTable.createTables(conn); // Create tables if they don't exist
